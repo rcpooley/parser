@@ -4,10 +4,11 @@ import { Token, TokenDelta } from './tokenizer';
 type BaseSection = {
     id: number;
     firstIDs: number[];
+    children: Section[];
     length: number;
 };
 
-type TokenSection = BaseSection & {
+export type TokenSection = BaseSection & {
     type: 'token';
     token: Token;
     length: 1;
@@ -15,27 +16,28 @@ type TokenSection = BaseSection & {
 
 type GroupSection = BaseSection & {
     type: 'group';
-    children: Section[];
 };
 
 type UnionSection = BaseSection & {
     type: 'union';
-    child: Section;
 };
 
 type RepeatSection = BaseSection & {
     type: 'repeat';
-    children: Section[];
 };
 
-type Section = TokenSection | GroupSection | UnionSection | RepeatSection;
+export type Section =
+    | TokenSection
+    | GroupSection
+    | UnionSection
+    | RepeatSection;
 
 const NULL_ID = -1;
 
 export default class Parser {
     constructor(private schema: Schema, private baseType: number) {}
 
-    setTokens(tokens: Token[]): Section {
+    setTokens(tokens: Token[]): Section | null {
         const state = match(
             {
                 schema: this.schema,
@@ -47,10 +49,16 @@ export default class Parser {
                 errors: 0,
             }
         );
-        throw new Error('not implemented');
+        if (state === null) {
+            return null;
+        }
+        if (state.sections.length === 0) {
+            throw new Error('not possible');
+        }
+        return state.sections[0];
     }
 
-    onChange(delta: TokenDelta): Section {
+    onChange(delta: TokenDelta): Section | null {
         throw new Error('not implemented');
     }
 
@@ -63,6 +71,7 @@ export default class Parser {
                     token,
                     length: 1,
                     firstIDs: [],
+                    children: [],
                 };
                 return sec;
             };
@@ -126,7 +135,7 @@ function match(params: Params, state: State): State | null {
     if (section.type === 'group' || section.type === 'repeat') {
         newSections.splice(state.index, 1, ...section.children);
     } else if (section.type === 'union') {
-        newSections.splice(state.index, 1, section.child);
+        newSections.splice(state.index, 1, section.children[0]);
     } else {
         return null;
     }
@@ -141,22 +150,6 @@ function matchUnion(
     state: State,
     type: UnionType
 ): State | null {
-    const section = state.sections[state.index];
-
-    if (type.childrenIDs.includes(section.id)) {
-        const newSections = state.sections.slice();
-        newSections[state.index] = {
-            type: 'union',
-            id: params.id,
-            child: section,
-            length: section.length,
-            firstIDs: nextFirstIDs([section]),
-        };
-        return {
-            ...state,
-            sections: newSections,
-        };
-    }
     // TODO may be able to optimize this with intersection between type.childrenIDs and section.firstIDs
     for (let i = 0; i < type.childrenIDs.length; i++) {
         const check = match(
@@ -167,7 +160,20 @@ function matchUnion(
             state
         );
         if (check !== null) {
-            return matchUnion(params, check, type); // will be caught by first if statement
+            // return matchUnion(params, check, type); // will be caught by first if statement
+            const newSections = check.sections.slice();
+            const child = newSections[state.index];
+            newSections[state.index] = {
+                type: 'union',
+                id: params.id,
+                children: [child],
+                length: child.length,
+                firstIDs: nextFirstIDs([child]),
+            };
+            return {
+                ...state,
+                sections: newSections,
+            };
         }
     }
 

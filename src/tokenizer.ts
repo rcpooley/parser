@@ -73,7 +73,7 @@ class Helper {
         const check = this.content.match(
             new RegExp(`^(${this.strings.join('|')})`)
         );
-        if (check) {
+        if (check && check[0].length > 0) {
             return this.advance(check[0].length, null);
         }
 
