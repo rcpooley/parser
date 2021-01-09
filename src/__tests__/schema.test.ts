@@ -16,6 +16,8 @@ describe('Schema', () => {
         const complexSentence = schema.group(simpleSentence, adverb);
         const sentence = schema.union(complexSentence, simpleSentence);
 
+        const root = schema.repeat(sentence);
+
         const tokens = new Tokenizer([
             'mouse',
             'moon',
@@ -25,10 +27,10 @@ describe('Schema', () => {
             'happily',
             'sadly',
         ]).setText(`
-            mouse walks happily
+            mouse walks happily moon talks
         `);
 
-        const parser = new Parser(schema, sentence);
+        const parser = new Parser(schema, root);
         parser.setTokens(tokens);
         console.log('hi');
     });

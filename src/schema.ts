@@ -18,13 +18,21 @@ export type UnionType = {
     childrenIDs: number[];
 };
 
-type Type = Readonly<StringType | TokenTagType | GroupType | UnionType>;
+export type RepeatType = {
+    type: 'repeat';
+    childID: number;
+};
+
+type Type = Readonly<
+    StringType | TokenTagType | GroupType | UnionType | RepeatType
+>;
 
 type BuilderType = string | number;
 interface TypeBuilder {
     readonly id: number;
     group(...types: BuilderType[]): number;
     union(...types: BuilderType[]): number;
+    repeat(type: BuilderType): number;
 }
 
 export default class Schema {
@@ -68,6 +76,14 @@ export default class Schema {
                 });
                 return id;
             },
+            repeat: (type: BuilderType) => {
+                validate();
+                this.types.set(id, {
+                    type: 'repeat',
+                    childID: this.getID(type),
+                });
+                return id;
+            },
         };
     }
 
@@ -77,6 +93,24 @@ export default class Schema {
 
     union(...types: BuilderType[]): number {
         return this.build().union(...types);
+    }
+
+    repeat(type: BuilderType): number {
+        return this.build().repeat(type);
+    }
+
+    string(str: string): number {
+        let id = this.stringIDs.get(str);
+        if (id !== undefined) {
+            return id;
+        }
+        id = this.nextID();
+        this.stringIDs.set(str, id);
+        this.types.set(id, {
+            type: 'string',
+            value: str,
+        });
+        return id;
     }
 
     tokenTag(tag: string): number {
@@ -100,18 +134,9 @@ export default class Schema {
     private getID(t: BuilderType): number {
         if (typeof t === 'number') {
             return t;
+        } else {
+            return this.string(t);
         }
-        let id = this.stringIDs.get(t);
-        if (id !== undefined) {
-            return id;
-        }
-        id = this.nextID();
-        this.stringIDs.set(t, id);
-        this.types.set(id, {
-            type: 'string',
-            value: t,
-        });
-        return id;
     }
 
     private nextID(): number {

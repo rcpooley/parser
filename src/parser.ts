@@ -1,9 +1,10 @@
-import Schema, { GroupType, UnionType } from './schema';
+import Schema, { GroupType, RepeatType, UnionType } from './schema';
 import { Token, TokenDelta } from './tokenizer';
 
 type BaseSection = {
     id: number;
     firstIDs: number[];
+    length: number;
 };
 
 type TokenSection = BaseSection & {
@@ -15,16 +16,19 @@ type TokenSection = BaseSection & {
 type GroupSection = BaseSection & {
     type: 'group';
     children: Section[];
-    length: number;
 };
 
 type UnionSection = BaseSection & {
     type: 'union';
     child: Section;
-    length: number;
 };
 
-type Section = TokenSection | GroupSection | UnionSection;
+type RepeatSection = BaseSection & {
+    type: 'repeat';
+    children: Section[];
+};
+
+type Section = TokenSection | GroupSection | UnionSection | RepeatSection;
 
 const NULL_ID = -1;
 
@@ -94,13 +98,17 @@ type State = {
  * index will remain unchanged
  */
 function match(params: Params, state: State): State | null {
-    const section = state.sections[state.index];
-
-    if (section.id === params.id) {
-        return state;
+    if (state.index >= state.sections.length) {
+        return null;
     }
 
+    const section = state.sections[state.index];
     const type = params.schema.getType(params.id);
+
+    // Custom logic required for repeat to possibly merge two sections
+    if (section.id === params.id && type.type !== 'repeat') {
+        return state;
+    }
 
     if (type.type === 'union') {
         const check = matchUnion(params, state, type);
@@ -108,11 +116,14 @@ function match(params: Params, state: State): State | null {
     } else if (type.type === 'group') {
         const check = matchGroup(params, state, type);
         if (check !== null) return check;
+    } else if (type.type === 'repeat') {
+        const check = matchRepeat(params, state, type);
+        if (check !== null) return check;
     }
 
     // Try breaking down
     const newSections = state.sections.slice();
-    if (section.type === 'group') {
+    if (section.type === 'group' || section.type === 'repeat') {
         newSections.splice(state.index, 1, ...section.children);
     } else if (section.type === 'union') {
         newSections.splice(state.index, 1, section.child);
@@ -146,7 +157,7 @@ function matchUnion(
             sections: newSections,
         };
     }
-    // TODO may be able to optimize this with intersectino between type.childrenIDs and section.firstIDs
+    // TODO may be able to optimize this with intersection between type.childrenIDs and section.firstIDs
     for (let i = 0; i < type.childrenIDs.length; i++) {
         const check = match(
             {
@@ -170,6 +181,7 @@ function matchGroup(
 ): State | null {
     let curState: State = state;
     let success = true;
+    // TODO may be able to optimize this with intersection between type.childrenIDs and section.firstIDs
     for (let i = 0; i < type.childrenIDs.length; i++) {
         const nextState = match(
             {
@@ -199,9 +211,7 @@ function matchGroup(
             type: 'group',
             id: params.id,
             children,
-            length: children
-                .map((child) => child.length)
-                .reduce((a, b) => a + b, 0),
+            length: combinedLength(children),
             firstIDs: nextFirstIDs(children),
         });
         return {
@@ -213,6 +223,91 @@ function matchGroup(
     return null;
 }
 
+function matchRepeat(
+    params: Params,
+    state: State,
+    type: RepeatType
+): State | null {
+    const section = state.sections[state.index];
+
+    if (section.id === params.id) {
+        if (section.type !== 'repeat') {
+            throw new Error('not possible');
+        }
+        // Try to read another repeat
+        const check = match(params, {
+            ...state,
+            index: state.index + 1,
+        });
+
+        if (check === null) {
+            return state;
+        }
+
+        // Merge sections
+        const newSections = state.sections.slice();
+        const victim = newSections.splice(state.index + 1, 1)[0];
+        if (victim.type !== 'repeat') {
+            throw new Error('not possible');
+        }
+        newSections[state.index] = {
+            type: 'repeat',
+            id: params.id,
+            firstIDs: section.firstIDs,
+            children: section.children.concat(victim.children),
+            length: section.length + victim.length,
+        };
+        return {
+            ...state,
+            sections: newSections,
+            errors: check.errors,
+        };
+    }
+
+    // Match as many children as possible
+    let curState: State = state;
+    let numChildren = 0;
+    while (true) {
+        const check = match(
+            { ...params, id: type.childID },
+            {
+                ...curState,
+                index: state.index + numChildren,
+            }
+        );
+        if (check === null) {
+            break;
+        }
+        numChildren++;
+        curState = check;
+    }
+    if (numChildren === 0) {
+        return null;
+    }
+
+    // Combine children
+    const newSections = curState.sections.slice();
+    const children = newSections.splice(state.index, numChildren);
+    newSections.splice(state.index, 0, {
+        type: 'repeat',
+        id: params.id,
+        children,
+        firstIDs: nextFirstIDs(children),
+        length: combinedLength(children),
+    });
+
+    // Try to match another repeat (will be caught by first if statement)
+    return matchRepeat(
+        params,
+        {
+            sections: newSections,
+            index: state.index,
+            errors: curState.errors,
+        },
+        type
+    );
+}
+
 function nextFirstIDs(sections: Section[]): number[] {
     if (sections.length === 0) {
         return [];
@@ -220,4 +315,8 @@ function nextFirstIDs(sections: Section[]): number[] {
         const s = sections[0];
         return [s.id, ...s.firstIDs];
     }
+}
+
+function combinedLength(sections: Section[]): number {
+    return sections.map((section) => section.length).reduce((a, b) => a + b, 0);
 }
