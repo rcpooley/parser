@@ -1,16 +1,26 @@
 import { Section, TokenSection } from '../../parser';
 import Schema from '../../schema';
 import Tokenizer, { TAG_WORD } from '../../tokenizer';
-import { ISampleSchema } from './types';
 
 const schema = new Schema();
 const word = schema.tokenTag(TAG_WORD);
+const operator = schema.union('+', '-', '*', '/');
 
 const typeBuilder = schema.build();
 const typeWithComma = schema.group(typeBuilder.id, ',');
-const typeList = schema.group(schema.repeat(typeWithComma), typeBuilder.id);
+const typeList = schema.group(schema.oneOrMore(typeWithComma), typeBuilder.id);
 const genericType = schema.group(word, '<', typeList, '>');
 const type = typeBuilder.union(genericType, word);
+
+const valueBuilder = schema.build();
+const dotIndexValue = schema.group(valueBuilder.id, '.', word);
+const bracketIndexValue = schema.group(
+    valueBuilder.id,
+    '[',
+    valueBuilder.id,
+    ']'
+);
+// const operatorValue =
 
 type GenericType = {
     name: string;
@@ -39,7 +49,7 @@ function parseTypeList(section: Section): Type[] {
     assert(section.id, typeList);
     const types: Type[] = [];
     const repeat = child(section, 0);
-    assert(repeat.type, 'repeat');
+    assert(repeat.type, 'oneOrMore');
     repeat.children.forEach((sec) => {
         assert(sec.id, typeWithComma);
         types.push(parseType(child(sec, 0)));
@@ -67,10 +77,9 @@ function assert(a: any, b: any) {
     }
 }
 
-const out: ISampleSchema<Type> = {
+export default {
     schema,
     tokenizer: new Tokenizer([]),
     baseType: type,
     parse: parseType,
 };
-export default out;

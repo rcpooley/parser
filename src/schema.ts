@@ -8,23 +8,18 @@ type TokenTagType = {
     tag: string;
 };
 
-export type GroupType = {
-    type: 'group';
+type ChildrenType = {
+    type: 'group' | 'union';
     childrenIDs: number[];
 };
 
-export type UnionType = {
-    type: 'union';
-    childrenIDs: number[];
-};
-
-export type RepeatType = {
-    type: 'repeat';
+type ChildType = {
+    type: 'oneOrMore' | 'repeat' | 'optional';
     childID: number;
 };
 
-type Type = Readonly<
-    StringType | TokenTagType | GroupType | UnionType | RepeatType
+export type Type = Readonly<
+    StringType | TokenTagType | ChildrenType | ChildType
 >;
 
 type BuilderType = string | number;
@@ -32,7 +27,9 @@ interface TypeBuilder {
     readonly id: number;
     group(...types: BuilderType[]): number;
     union(...types: BuilderType[]): number;
+    oneOrMore(type: BuilderType): number;
     repeat(type: BuilderType): number;
+    optional(type: BuilderType): number;
 }
 
 export default class Schema {
@@ -76,10 +73,26 @@ export default class Schema {
                 });
                 return id;
             },
+            oneOrMore: (type: BuilderType) => {
+                validate();
+                this.types.set(id, {
+                    type: 'oneOrMore',
+                    childID: this.getID(type),
+                });
+                return id;
+            },
             repeat: (type: BuilderType) => {
                 validate();
                 this.types.set(id, {
                     type: 'repeat',
+                    childID: this.getID(type),
+                });
+                return id;
+            },
+            optional: (type: BuilderType) => {
+                validate();
+                this.types.set(id, {
+                    type: 'optional',
                     childID: this.getID(type),
                 });
                 return id;
@@ -95,8 +108,16 @@ export default class Schema {
         return this.build().union(...types);
     }
 
+    oneOrMore(type: BuilderType): number {
+        return this.build().oneOrMore(type);
+    }
+
     repeat(type: BuilderType): number {
         return this.build().repeat(type);
+    }
+
+    optional(type: BuilderType): number {
+        return this.build().optional(type);
     }
 
     string(str: string): number {
