@@ -1,3 +1,4 @@
+import Match from './matcher';
 import Schema, { Type } from './schema';
 import { Token, TokenDelta } from './tokenizer';
 
@@ -26,18 +27,17 @@ export default class Parser {
     constructor(private schema: Schema, private baseType: number) {}
 
     setTokens(tokens: Token[]): Section | null {
-        const state = match(
+        const matcher = Match(
             {
                 schema: this.schema,
                 id: this.baseType,
-                fakeTypes: [],
             },
             {
                 sections: this.convertTokensToSections(tokens),
                 index: 0,
-                errors: 0,
             }
         );
+        const state = matcher.nextOrNull();
         if (state === null) {
             return null;
         }

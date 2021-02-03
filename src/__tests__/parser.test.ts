@@ -1,7 +1,6 @@
 import Parser, { Section } from '../parser';
 import Schema from '../schema';
 import Tokenizer from '../tokenizer';
-import TypeSchema from './schemas/langSchema';
 
 class Tester {
     private parser: Parser;
@@ -134,15 +133,15 @@ describe('Parser', () => {
         });
         tester.expect('a b b c', null);
     });
-
+    /*
     test('recursive example', () => {
-        const parser = new Parser(TypeSchema.schema, TypeSchema.baseType);
+        const parser = new Parser(LangSchema.schema, LangSchema.baseType);
         const section = parser.setTokens(
-            TypeSchema.tokenizer.setText(`Union<string, Dict<hi, bye>>`)
+            LangSchema.tokenizer.setText(`Union<string, Dict<hi, bye>>`)
         );
         expect(section).not.toBeNull();
         if (section === null) throw new Error();
-        const type = TypeSchema.parse(section);
+        const type = LangSchema.parse(section);
         expect(type).toEqual({
             name: 'Union',
             children: [
@@ -153,5 +152,5 @@ describe('Parser', () => {
                 },
             ],
         });
-    });
+    });*/
 });
