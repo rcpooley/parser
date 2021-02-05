@@ -99,7 +99,7 @@ export default class Schema {
                     separator: config?.separator
                         ? {
                               id: this.getID(config.separator),
-                              end: config.separatorAtEnd || 'optional',
+                              end: config.separatorAtEnd ?? 'optional',
                           }
                         : null,
                 });

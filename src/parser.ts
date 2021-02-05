@@ -17,6 +17,8 @@ export type TokenSection = BaseSection & {
 
 export type ComplexType = 'group' | 'union' | 'repeat' | 'optional';
 
+export type SectionType = ComplexType | 'token';
+
 type ComplexSection = BaseSection & {
     type: ComplexType;
 };
@@ -24,6 +26,37 @@ type ComplexSection = BaseSection & {
 export type Section = TokenSection | ComplexSection;
 
 const NULL_ID = Number.NaN;
+
+export function convertTokensToSections(
+    schema: Schema,
+    tokens: Token[]
+): TokenSection[] {
+    return tokens.map((token) => {
+        const o = (id: number) => {
+            const sec: TokenSection = {
+                type: 'token',
+                id,
+                token,
+                length: 1,
+                firstIDs: [],
+                children: [],
+            };
+            return sec;
+        };
+        if (token.tag !== null) {
+            const id = schema.tokenTagIDs.get(token.tag);
+            if (id !== undefined) {
+                return o(id);
+            }
+        }
+        const id = schema.stringIDs.get(token.value);
+        if (id !== undefined) {
+            return o(id);
+        }
+        // TODO mark token as error
+        return o(NULL_ID);
+    });
+}
 
 export default class Parser {
     constructor(private schema: Schema, private baseType: number) {}
@@ -35,7 +68,7 @@ export default class Parser {
                 id: this.baseType,
             },
             {
-                sections: this.convertTokensToSections(tokens),
+                sections: convertTokensToSections(this.schema, tokens),
                 index: 0,
             }
         );
@@ -51,34 +84,6 @@ export default class Parser {
 
     onChange(delta: TokenDelta): Section | null {
         throw new Error('not implemented');
-    }
-
-    private convertTokensToSections(tokens: Token[]): TokenSection[] {
-        return tokens.map((token) => {
-            const o = (id: number) => {
-                const sec: TokenSection = {
-                    type: 'token',
-                    id,
-                    token,
-                    length: 1,
-                    firstIDs: [],
-                    children: [],
-                };
-                return sec;
-            };
-            if (token.tag !== null) {
-                const id = this.schema.tokenTagIDs.get(token.tag);
-                if (id !== undefined) {
-                    return o(id);
-                }
-            }
-            const id = this.schema.stringIDs.get(token.value);
-            if (id !== undefined) {
-                return o(id);
-            }
-            // TODO mark token as error
-            return o(NULL_ID);
-        });
     }
 }
 

@@ -70,6 +70,7 @@ class PartialRepeatMatcher extends Matcher {
 export default class RepeatMatcher extends Matcher {
     private matcher: PartialRepeatMatcher;
     private endMatcher: Matcher | null;
+    private returnedEmpty: boolean;
 
     constructor(params: Params, state: State, private type: RepeatType) {
         super(params, state);
@@ -80,6 +81,7 @@ export default class RepeatMatcher extends Matcher {
             type.separator?.id || null
         );
         this.endMatcher = null;
+        this.returnedEmpty = false;
     }
 
     protected nextImpl(): State | null {
@@ -88,9 +90,14 @@ export default class RepeatMatcher extends Matcher {
             return check;
         }
         if (!this.matcher.hasNext()) {
-            return null;
+            if (this.returnedEmpty || this.type.minElementCount > 0) {
+                return null;
+            }
+            this.returnedEmpty = true;
+            return this.groupChildren(this.state.sections, 0, 'repeat');
         }
         const sections = this.matcher.next().sections;
+        // Guaranteed that matcher.length > 0
 
         if (this.type.separator === null) {
             return this.groupChildren(sections, this.matcher.length, 'repeat');
@@ -112,10 +119,13 @@ export default class RepeatMatcher extends Matcher {
                 // Child found, safe to return for both options
                 return check;
             }
-            if (
-                this.type.separator.end === 'optional' &&
-                this.matcher.length > 0
-            ) {
+            if (this.type.separator.end === 'optional') {
+                return this.groupChildren(
+                    sections,
+                    this.matcher.length * 2,
+                    'repeat'
+                );
+            } else {
                 // Child not found, remove last separator from repeat
                 return this.groupChildren(
                     sections,
@@ -123,7 +133,6 @@ export default class RepeatMatcher extends Matcher {
                     'repeat'
                 );
             }
-            return this.nextImpl();
         }
     }
 
