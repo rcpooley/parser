@@ -19,20 +19,7 @@ export default class UnionMatcher extends Matcher {
             return null;
         }
         const next = matcher.next();
-        const { params, state } = this;
-        const newSections = next.sections.slice();
-        const child = newSections[state.index];
-        newSections[state.index] = {
-            type: 'union',
-            id: params.id,
-            children: [child],
-            length: child.length,
-            firstIDs: this.nextFirstIDs([child]),
-        };
-        return {
-            ...state,
-            sections: newSections,
-        };
+        return this.groupChildren(next.sections, 1, 'union');
     }
 
     private nextMatcher(): Matcher | null {

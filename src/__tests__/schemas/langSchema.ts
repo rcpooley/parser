@@ -7,8 +7,9 @@ const word = schema.tokenTag(TAG_WORD);
 const operator = schema.union('+', '-', '*', '/');
 
 const typeBuilder = schema.build();
-const typeWithComma = schema.group(typeBuilder.id, ',');
-const typeList = schema.group(schema.oneOrMore(typeWithComma), typeBuilder.id);
+const typeList = schema.repeat(typeBuilder.id, {
+    separator: ',',
+});
 const genericType = schema.group(word, '<', typeList, '>');
 const type = typeBuilder.union(genericType, word);
 
@@ -48,13 +49,9 @@ function parseType(section: Section): Type {
 function parseTypeList(section: Section): Type[] {
     assert(section.id, typeList);
     const types: Type[] = [];
-    const repeat = child(section, 0);
-    assert(repeat.type, 'oneOrMore');
-    repeat.children.forEach((sec) => {
-        assert(sec.id, typeWithComma);
-        types.push(parseType(child(sec, 0)));
-    });
-    types.push(parseType(child(section, 1)));
+    for (let i = 0; i < section.children.length; i += 2) {
+        types.push(parseType(child(section, i)));
+    }
     return types;
 }
 

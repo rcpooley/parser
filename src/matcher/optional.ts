@@ -12,36 +12,15 @@ export default class OptionalMatcher extends Matcher {
     }
 
     protected nextImpl(): State | null {
-        const { params, state } = this;
         if (this.returnedEmptyOptional) {
             return null;
         }
         const check = this.matcher.nextOrNull();
-        let newSections;
         if (check === null) {
             this.returnedEmptyOptional = true;
-            newSections = state.sections.slice();
-            newSections.splice(state.index, 0, {
-                type: 'optional',
-                id: params.id,
-                firstIDs: [],
-                children: [],
-                length: 0,
-            });
+            return this.groupChildren(this.state.sections, 0, 'optional');
         } else {
-            newSections = check.sections.slice();
-            const children = newSections.splice(state.index, 1);
-            newSections.splice(state.index, 0, {
-                type: 'optional',
-                id: params.id,
-                firstIDs: this.nextFirstIDs(children),
-                children,
-                length: this.combinedLength(children),
-            });
+            return this.groupChildren(check.sections, 1, 'optional');
         }
-        return {
-            sections: newSections,
-            index: state.index,
-        };
     }
 }

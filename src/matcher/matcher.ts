@@ -1,4 +1,4 @@
-import { Section } from '../parser';
+import { ComplexType, Section } from '../parser';
 import Schema from '../schema';
 
 export type Params = {
@@ -60,6 +60,25 @@ export abstract class Matcher {
         };
     }
 
+    protected groupChildren(
+        sections: Section[],
+        length: number,
+        type: ComplexType
+    ): State {
+        const children = sections.splice(this.state.index, length);
+        sections.splice(this.state.index, 0, {
+            type,
+            id: this.params.id,
+            firstIDs: this.nextFirstIDs(children),
+            children,
+            length: this.combinedLength(children),
+        });
+        return {
+            sections,
+            index: this.state.index,
+        };
+    }
+
     protected combinedLength(sections: Section[]): number {
         return sections
             .map((section) => section.length)
@@ -73,5 +92,24 @@ export abstract class Matcher {
             const s = sections[0];
             return [s.id, ...s.firstIDs];
         }
+    }
+}
+
+export class MatcherAndSections {
+    private sections: Section[] | null;
+
+    constructor(private matcher: Matcher) {
+        this.sections = null;
+    }
+
+    getSections(): Section[] | null {
+        if (this.sections === null) {
+            this.sections = this.matcher.nextOrNull()?.sections || null;
+        }
+        return this.sections;
+    }
+
+    next() {
+        this.sections = null;
     }
 }

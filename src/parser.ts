@@ -1,5 +1,5 @@
 import Match from './matcher';
-import Schema, { Type } from './schema';
+import Schema from './schema';
 import { Token, TokenDelta } from './tokenizer';
 
 type BaseSection = {
@@ -15,8 +15,10 @@ export type TokenSection = BaseSection & {
     length: 1;
 };
 
+export type ComplexType = 'group' | 'union' | 'repeat' | 'optional';
+
 type ComplexSection = BaseSection & {
-    type: 'group' | 'union' | 'oneOrMore' | 'repeat' | 'optional';
+    type: ComplexType;
 };
 
 export type Section = TokenSection | ComplexSection;
@@ -80,131 +82,7 @@ export default class Parser {
     }
 }
 
-type Params = {
-    schema: Schema;
-    id: number;
-    fakeTypes: Type[];
-};
-
-type State = {
-    sections: Section[];
-    index: number;
-    errors: number;
-};
-
-/**
- * @returns state where sections[index].id === id, or null.
- * index will remain unchanged
- */
-function match(params: Params, state: State): State | null {
-    if (state.index >= state.sections.length) {
-        return null;
-    }
-
-    const section = state.sections[state.index];
-    const type = getType(params);
-
-    // Custom logic required for repeat to possibly merge two sections
-    if (section.id === params.id && type.type !== 'repeat') {
-        return state;
-    }
-
-    if (type.type === 'union') {
-        const check = matchUnion(params, state, type.childrenIDs);
-        if (check !== null) return check;
-    } else if (type.type === 'group') {
-        const check = matchGroup(params, state, type.childrenIDs);
-        if (check !== null) return check;
-    } else if (type.type === 'oneOrMore') {
-        const check = matchOneOrMore(params, state, type.childID);
-        if (check !== null) return check;
-    } else if (type.type === 'repeat') {
-        return matchRepeat(params, state, type.childID);
-    } else if (type.type === 'optional') {
-        return matchOptional(params, state, type.childID);
-    }
-
-    // Try breaking down
-    if (section.type === 'token') {
-        return null;
-    }
-    const newSections = state.sections.slice();
-    newSections.splice(state.index, 1, ...section.children);
-    return match(params, {
-        ...state,
-        sections: newSections,
-    });
-}
-
-function matchUnion(
-    params: Params,
-    state: State,
-    childrenIDs: number[]
-): State | null {
-    // TODO may be able to optimize this with intersection between type.childrenIDs and section.firstIDs
-    for (let i = 0; i < childrenIDs.length; i++) {
-        const check = match(getParams(params, childrenIDs[i]), state);
-        if (check !== null) {
-            // return matchUnion(params, check, type); // will be caught by first if statement
-            const newSections = check.sections.slice();
-            const child = newSections[state.index];
-            newSections[state.index] = {
-                type: 'union',
-                id: params.id,
-                children: [child],
-                length: child.length,
-                firstIDs: nextFirstIDs([child]),
-            };
-            return {
-                ...state,
-                sections: newSections,
-            };
-        }
-    }
-
-    return null;
-}
-
-function matchGroup(
-    params: Params,
-    state: State,
-    childrenIDs: number[]
-): State | null {
-    let curState: State = state;
-    let success = true;
-    // TODO may be able to optimize this with intersection between type.childrenIDs and section.firstIDs
-    for (let i = 0; i < childrenIDs.length; i++) {
-        const nextState = match(getParams(params, childrenIDs[i]), {
-            ...curState,
-            index: state.index + i,
-        });
-        if (nextState === null) {
-            success = false;
-            break;
-        } else {
-            curState = nextState;
-        }
-    }
-    if (success) {
-        // Merge sections into group
-        const newSections = curState.sections.slice();
-        const children = newSections.splice(state.index, childrenIDs.length);
-        newSections.splice(state.index, 0, {
-            type: 'group',
-            id: params.id,
-            children,
-            length: combinedLength(children),
-            firstIDs: nextFirstIDs(children),
-        });
-        return {
-            ...state,
-            sections: newSections,
-            errors: curState.errors,
-        };
-    }
-    return null;
-}
-
+/*
 function matchOneOrMore(
     params: Params,
     state: State,
@@ -320,75 +198,4 @@ function matchRepeat(params: Params, state: State, childID: number): State {
 
     return check;
 }
-
-function matchOptional(params: Params, state: State, childID: number): State {
-    const check = match(getParams(params, childID), state);
-    let newSections;
-    if (check === null) {
-        newSections = state.sections.slice();
-        newSections.splice(state.index, 0, {
-            type: 'optional',
-            id: params.id,
-            firstIDs: [],
-            children: [],
-            length: 0,
-        });
-    } else {
-        newSections = check.sections.slice();
-        const children = newSections.splice(state.index, 1);
-        newSections.splice(state.index, 0, {
-            type: 'optional',
-            id: params.id,
-            firstIDs: nextFirstIDs(children),
-            children,
-            length: combinedLength(children),
-        });
-    }
-    return {
-        ...state,
-        sections: newSections,
-    };
-}
-
-function nextFirstIDs(sections: Section[]): number[] {
-    if (sections.length === 0) {
-        return [];
-    } else {
-        const s = sections[0];
-        return [s.id, ...s.firstIDs];
-    }
-}
-
-function combinedLength(sections: Section[]): number {
-    return sections.map((section) => section.length).reduce((a, b) => a + b, 0);
-}
-
-function getParams(params: Params, id: number): Params {
-    return {
-        schema: params.schema,
-        id,
-        fakeTypes: params.fakeTypes,
-    };
-}
-
-function createFakeType(params: Params, fakeType: Type): Params {
-    const newFakeTypes = params.fakeTypes.slice();
-    newFakeTypes.push(fakeType);
-    return {
-        schema: params.schema,
-        id: -newFakeTypes.length,
-        fakeTypes: newFakeTypes,
-    };
-}
-
-function getType(params: Params): Type {
-    if (params.id < 0) {
-        const type = params.fakeTypes[-params.id - 1];
-        if (!type) {
-            throw new Error('Invalid fake ID');
-        }
-        return type;
-    } else {
-        return params.schema.getType(params.id);
-    }
-}
+*/

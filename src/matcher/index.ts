@@ -1,6 +1,7 @@
 import GroupMatcher from './group';
 import { Matcher, Params, State } from './matcher';
 import OptionalMatcher from './optional';
+import RepeatMatcher from './repeat';
 import SimpleMatcher from './simple';
 import UnionMatcher from './union';
 
@@ -26,6 +27,8 @@ export default function Match(params: Params, state: State): Matcher {
             return new UnionMatcher(params, state, type.childrenIDs);
         case 'group':
             return new GroupMatcher(params, state, type.childrenIDs);
+        case 'repeat':
+            return new RepeatMatcher(params, state, type);
         case 'optional':
             return new OptionalMatcher(params, state, type.childID);
     }

@@ -5,7 +5,7 @@ import { Matcher, Params, State } from './matcher';
 /**
  * Returned state is not wrapped in group
  */
-class PartialGroupMatcher extends Matcher {
+export class PartialGroupMatcher extends Matcher {
     private firstChildMatcher: Matcher;
     private firstSections: Section[] | null;
     private remainingChildrenIDs: number[];
@@ -84,17 +84,10 @@ export default class GroupMatcher extends Matcher {
         if (partial === null) {
             return null;
         }
-        const children = partial.sections.splice(
-            partial.index,
-            this.childrenIDs.length
+        return this.groupChildren(
+            partial.sections,
+            this.childrenIDs.length,
+            'group'
         );
-        partial.sections.splice(partial.index, 0, {
-            type: 'group',
-            id: this.params.id,
-            children,
-            length: this.combinedLength(children),
-            firstIDs: this.nextFirstIDs(children),
-        });
-        return partial;
     }
 }

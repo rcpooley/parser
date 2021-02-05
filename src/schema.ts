@@ -13,13 +13,31 @@ type ChildrenType = {
     childrenIDs: number[];
 };
 
-type ChildType = {
-    type: 'oneOrMore' | 'repeat' | 'optional';
+export type RepeatType = {
+    type: 'repeat';
+    childID: number;
+    minElementCount: number;
+    separator: RepeatSeparator | null;
+};
+
+type RepeatSeparator = {
+    id: number;
+    end: boolean | 'optional';
+};
+
+type RepeatConfig = {
+    minElementCount?: number;
+    separator?: BuilderType;
+    separatorAtEnd?: boolean | 'optional';
+};
+
+type OptionalType = {
+    type: 'optional';
     childID: number;
 };
 
 export type Type = Readonly<
-    StringType | TokenTagType | ChildrenType | ChildType
+    StringType | TokenTagType | ChildrenType | RepeatType | OptionalType
 >;
 
 type BuilderType = string | number;
@@ -27,8 +45,7 @@ interface TypeBuilder {
     readonly id: number;
     group(...types: BuilderType[]): number;
     union(...types: BuilderType[]): number;
-    oneOrMore(type: BuilderType): number;
-    repeat(type: BuilderType): number;
+    repeat(type: BuilderType, config?: RepeatConfig): number;
     optional(type: BuilderType): number;
 }
 
@@ -73,19 +90,18 @@ export default class Schema {
                 });
                 return id;
             },
-            oneOrMore: (type: BuilderType) => {
-                validate();
-                this.types.set(id, {
-                    type: 'oneOrMore',
-                    childID: this.getID(type),
-                });
-                return id;
-            },
-            repeat: (type: BuilderType) => {
+            repeat: (type: BuilderType, config?: RepeatConfig) => {
                 validate();
                 this.types.set(id, {
                     type: 'repeat',
                     childID: this.getID(type),
+                    minElementCount: config?.minElementCount ?? 0,
+                    separator: config?.separator
+                        ? {
+                              id: this.getID(config.separator),
+                              end: config.separatorAtEnd || 'optional',
+                          }
+                        : null,
                 });
                 return id;
             },
@@ -108,12 +124,8 @@ export default class Schema {
         return this.build().union(...types);
     }
 
-    oneOrMore(type: BuilderType): number {
-        return this.build().oneOrMore(type);
-    }
-
-    repeat(type: BuilderType): number {
-        return this.build().repeat(type);
+    repeat(type: BuilderType, config?: RepeatConfig): number {
+        return this.build().repeat(type, config);
     }
 
     optional(type: BuilderType): number {
