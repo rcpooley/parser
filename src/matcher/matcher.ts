@@ -65,8 +65,9 @@ export abstract class Matcher {
         length: number,
         type: ComplexType
     ): State {
-        const children = sections.splice(this.state.index, length);
-        sections.splice(this.state.index, 0, {
+        const newSections = sections.slice();
+        const children = newSections.splice(this.state.index, length);
+        newSections.splice(this.state.index, 0, {
             type,
             id: this.params.id,
             firstIDs: this.nextFirstIDs(children),
@@ -74,7 +75,7 @@ export abstract class Matcher {
             length: this.combinedLength(children),
         });
         return {
-            sections,
+            sections: newSections,
             index: this.state.index,
         };
     }

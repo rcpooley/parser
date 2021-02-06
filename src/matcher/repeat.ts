@@ -31,7 +31,8 @@ class PartialRepeatMatcher extends Matcher {
 
     protected nextImpl(): State | null {
         let sections = this.matcher.getSections();
-        if (sections === null) {
+        // Make sure we matched at least one child (to fix repeat of optional infinite)
+        if (sections === null || sections[this.state.index].length === 0) {
             this.length = 0;
             return null;
         }
@@ -70,6 +71,7 @@ class PartialRepeatMatcher extends Matcher {
 export default class RepeatMatcher extends Matcher {
     private matcher: PartialRepeatMatcher;
     private endMatcher: Matcher | null;
+    private returnedAny: boolean;
     private returnedEmpty: boolean;
 
     constructor(params: Params, state: State, private type: RepeatType) {
@@ -81,6 +83,7 @@ export default class RepeatMatcher extends Matcher {
             type.separator?.id || null
         );
         this.endMatcher = null;
+        this.returnedAny = false;
         this.returnedEmpty = false;
     }
 
@@ -90,7 +93,11 @@ export default class RepeatMatcher extends Matcher {
             return check;
         }
         if (!this.matcher.hasNext()) {
-            if (this.returnedEmpty || this.type.minElementCount > 0) {
+            if (
+                this.returnedAny ||
+                this.returnedEmpty ||
+                this.type.minElementCount > 0
+            ) {
                 return null;
             }
             this.returnedEmpty = true;
@@ -98,11 +105,16 @@ export default class RepeatMatcher extends Matcher {
         }
         const sections = this.matcher.next().sections;
         // Guaranteed that matcher.length > 0
+        if (this.matcher.length < this.type.minElementCount) {
+            return this.nextImpl();
+        }
 
         if (this.type.separator === null) {
+            this.returnedAny = true;
             return this.groupChildren(sections, this.matcher.length, 'repeat');
         } else if (this.type.separator.end === true) {
             // Separator required at end so don't need to match another child
+            this.returnedAny = true;
             return this.groupChildren(
                 sections,
                 this.matcher.length * 2,
@@ -117,9 +129,11 @@ export default class RepeatMatcher extends Matcher {
             const check = this.endMatcherNext();
             if (check !== null) {
                 // Child found, safe to return for both options
+                this.returnedAny = true;
                 return check;
             }
             if (this.type.separator.end === 'optional') {
+                this.returnedAny = true;
                 return this.groupChildren(
                     sections,
                     this.matcher.length * 2,
@@ -127,6 +141,7 @@ export default class RepeatMatcher extends Matcher {
                 );
             } else {
                 // Child not found, remove last separator from repeat
+                this.returnedAny = true;
                 return this.groupChildren(
                     sections,
                     this.matcher.length * 2 - 1,
