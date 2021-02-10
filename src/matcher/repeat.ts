@@ -11,20 +11,19 @@ class PartialRepeatMatcher extends Matcher {
 
     constructor(
         params: Params,
-        state: State,
         private type: RepeatType,
         private matchSeparator: boolean
     ) {
-        super(params, state);
+        super(params);
         let matcher: Matcher;
         if (matchSeparator) {
             if (type.separator === null) {
                 throw new Error('not possible');
             }
-            matcher = Match(this.getParams(type.separator.id), state);
+            matcher = Match(this.getParams(type.separator.id));
             this.nextMatchSeparator = false;
         } else {
-            matcher = Match(this.getParams(type.childID), state);
+            matcher = Match(this.getParams(type.childID));
             this.nextMatchSeparator = type.separator !== null;
         }
         this.matcher = new MatcherAndSections(matcher);
@@ -36,18 +35,14 @@ class PartialRepeatMatcher extends Matcher {
     protected nextImpl(): State | null {
         let sections = this.matcher.getSections();
         // Make sure we matched at least one child (to fix repeat of optional infinite)
-        if (sections === null || sections[this.state.index].length === 0) {
+        if (sections === null || sections[this.params.index].length === 0) {
             this.length = 0;
             this.separatorAtEnd = false;
             return null;
         }
         if (this.remainingMatcher === null) {
             this.remainingMatcher = new PartialRepeatMatcher(
-                this.params,
-                {
-                    sections,
-                    index: this.state.index + 1,
-                },
+                this.getParams(-1, sections, this.params.index + 1),
                 this.type,
                 this.nextMatchSeparator
             );
@@ -63,7 +58,7 @@ class PartialRepeatMatcher extends Matcher {
                 }
                 this.length = 1;
                 this.separatorAtEnd = this.matchSeparator;
-                return { sections, index: this.state.index };
+                return { sections };
             }
         }
         if (!this.remainingMatcher.hasNext()) {
@@ -76,7 +71,6 @@ class PartialRepeatMatcher extends Matcher {
         this.separatorAtEnd = this.remainingMatcher.separatorAtEnd;
         return {
             sections,
-            index: this.state.index,
         };
     }
 }
@@ -85,9 +79,9 @@ export default class RepeatMatcher extends Matcher {
     private matcher: PartialRepeatMatcher;
     private returnedAny: boolean;
 
-    constructor(params: Params, state: State, private type: RepeatType) {
-        super(params, state);
-        this.matcher = new PartialRepeatMatcher(params, state, type, false);
+    constructor(params: Params, private type: RepeatType) {
+        super(params);
+        this.matcher = new PartialRepeatMatcher(params, type, false);
         this.returnedAny = false;
     }
 
@@ -97,7 +91,7 @@ export default class RepeatMatcher extends Matcher {
                 return null;
             }
             this.returnedAny = true;
-            return this.groupChildren(this.state.sections, 0, 'repeat');
+            return this.groupChildren(this.params.sections, 0, 'repeat');
         }
         // Guaranteed that matcher.length > 0
         const sections = this.matcher.next().sections;

@@ -4,17 +4,18 @@ import Schema from '../schema';
 export type Params = {
     schema: Schema;
     id: number;
+    sections: Section[];
+    index: number;
 };
 
 export type State = {
     sections: Section[];
-    index: number;
 };
 
 export abstract class Matcher {
     private buffer: State | null | undefined;
 
-    constructor(protected params: Params, protected state: State) {
+    constructor(protected params: Params) {
         this.buffer = undefined;
     }
 
@@ -53,10 +54,16 @@ export abstract class Matcher {
 
     protected abstract nextImpl(): State | null;
 
-    protected getParams(id: number): Params {
+    protected getParams(
+        id: number,
+        sections?: Section[],
+        index?: number
+    ): Params {
         return {
             schema: this.params.schema,
             id,
+            sections: sections ?? this.params.sections,
+            index: index ?? this.params.index,
         };
     }
 
@@ -66,24 +73,19 @@ export abstract class Matcher {
         type: ComplexType
     ): State {
         const newSections = sections.slice();
-        const children = newSections.splice(this.state.index, length);
-        newSections.splice(this.state.index, 0, {
+        const children = newSections.splice(this.params.index, length);
+        newSections.splice(this.params.index, 0, {
             type,
             id: this.params.id,
             firstIDs: this.nextFirstIDs(children),
             children,
-            length: this.combinedLength(children),
+            length: children
+                .map((section) => section.length)
+                .reduce((a, b) => a + b, 0),
         });
         return {
             sections: newSections,
-            index: this.state.index,
         };
-    }
-
-    protected combinedLength(sections: Section[]): number {
-        return sections
-            .map((section) => section.length)
-            .reduce((a, b) => a + b, 0);
     }
 
     protected nextFirstIDs(sections: Section[]): number[] {

@@ -3,8 +3,8 @@ import { Matcher, Params, State } from './matcher';
 export default class SimpleMatcher extends Matcher {
     private match: State | null;
 
-    constructor(params: Params, state: State) {
-        super(params, state);
+    constructor(params: Params) {
+        super(params);
         this.match = this.getMatch();
     }
 
@@ -15,15 +15,13 @@ export default class SimpleMatcher extends Matcher {
     }
 
     private getMatch(): State | null {
-        const { id } = this.params;
-        const { index } = this.state;
-        const sections = this.state.sections.slice();
+        const { id, index } = this.params;
+        const sections = this.params.sections.slice();
         while (true) {
             const section = sections[index];
             if (section.id === id) {
                 return {
                     sections,
-                    index,
                 };
             }
 

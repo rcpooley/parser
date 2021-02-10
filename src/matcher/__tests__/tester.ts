@@ -2,25 +2,26 @@ import Match from '..';
 import { convertTokensToSections, Section } from '../../parser';
 import Schema from '../../schema';
 import Tokenizer from '../../tokenizer';
-import { Params } from '../matcher';
 
 export default class Tester {
-    private params: Params;
     private tokenizer: Tokenizer;
 
-    constructor(private schema: Schema, id: number) {
-        this.params = { schema, id };
+    constructor(private schema: Schema, private id: number) {
         this.tokenizer = new Tokenizer([]);
     }
 
     expect(text: string, ...matches: Array<Array<Section | string>>) {
         const tokens = this.tokenizer.setText(text);
-        const sections = convertTokensToSections(this.params.schema, tokens);
-        const matcher = Match(this.params, { sections, index: 0 });
+        const sections = convertTokensToSections(this.schema, tokens);
+        const matcher = Match({
+            schema: this.schema,
+            id: this.id,
+            sections,
+            index: 0,
+        });
         matches.forEach((expectedSections) => {
             expect(matcher.hasNext()).toBeTruthy();
             const state = matcher.next();
-            expect(state.index).toBe(0);
             expect(this.clean(state.sections)).toEqual(
                 this.clean(this.convertSections(expectedSections))
             );

@@ -62,16 +62,12 @@ export default class Parser {
     constructor(private schema: Schema, private baseType: number) {}
 
     setTokens(tokens: Token[]): Section | null {
-        const matcher = Match(
-            {
-                schema: this.schema,
-                id: this.baseType,
-            },
-            {
-                sections: convertTokensToSections(this.schema, tokens),
-                index: 0,
-            }
-        );
+        const matcher = Match({
+            schema: this.schema,
+            id: this.baseType,
+            sections: convertTokensToSections(this.schema, tokens),
+            index: 0,
+        });
         const state = matcher.nextOrNull();
         if (state === null) {
             return null;

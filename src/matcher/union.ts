@@ -6,8 +6,8 @@ export default class UnionMatcher extends Matcher {
     private childIndex: number;
     private loadedAllMatchers: boolean;
 
-    constructor(params: Params, state: State, private childrenIDs: number[]) {
-        super(params, state);
+    constructor(params: Params, private childrenIDs: number[]) {
+        super(params);
         this.matchers = [];
         this.childIndex = 0;
         this.loadedAllMatchers = false;
@@ -27,8 +27,7 @@ export default class UnionMatcher extends Matcher {
         if (!this.loadedAllMatchers) {
             if (this.childIndex < childrenIDs.length) {
                 const matcher = Match(
-                    this.getParams(childrenIDs[this.childIndex++]),
-                    this.state
+                    this.getParams(childrenIDs[this.childIndex++])
                 );
                 if (!matcher.hasNext()) {
                     return this.nextMatcher();

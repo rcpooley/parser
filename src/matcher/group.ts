@@ -11,12 +11,9 @@ export class PartialGroupMatcher extends Matcher {
     private remainingChildrenIDs: number[];
     private remainingMatcher: Matcher | null;
 
-    constructor(params: Params, state: State, childrenIDs: number[]) {
-        super(params, state);
-        this.firstChildMatcher = Match(
-            this.getParams(childrenIDs[0]),
-            this.state
-        );
+    constructor(params: Params, childrenIDs: number[]) {
+        super(params);
+        this.firstChildMatcher = Match(this.getParams(childrenIDs[0]));
         this.firstSections = null;
         this.remainingChildrenIDs = childrenIDs.slice(1);
         this.remainingMatcher = null;
@@ -34,7 +31,6 @@ export class PartialGroupMatcher extends Matcher {
             this.firstSections = null; // So next time we will load new sections
             return {
                 sections: firstSections,
-                index: this.state.index,
             };
         }
         while (this.firstSections !== null) {
@@ -45,7 +41,6 @@ export class PartialGroupMatcher extends Matcher {
             }
             return {
                 sections: matcher.next().sections,
-                index: this.state.index,
             };
         }
         return null;
@@ -54,11 +49,7 @@ export class PartialGroupMatcher extends Matcher {
     private getRemainingMatcher(sections: Section[]): Matcher {
         if (this.remainingMatcher === null) {
             this.remainingMatcher = new PartialGroupMatcher(
-                this.getParams(-1),
-                {
-                    sections,
-                    index: this.state.index + 1,
-                },
+                this.getParams(-1, sections, this.params.index + 1),
                 this.remainingChildrenIDs
             );
         }
@@ -74,9 +65,9 @@ export class PartialGroupMatcher extends Matcher {
 export default class GroupMatcher extends Matcher {
     private matcher: Matcher;
 
-    constructor(params: Params, state: State, private childrenIDs: number[]) {
-        super(params, state);
-        this.matcher = new PartialGroupMatcher(params, state, childrenIDs);
+    constructor(params: Params, private childrenIDs: number[]) {
+        super(params);
+        this.matcher = new PartialGroupMatcher(params, childrenIDs);
     }
 
     protected nextImpl(): State | null {

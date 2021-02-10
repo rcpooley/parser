@@ -11,9 +11,9 @@ class NullMatcher extends Matcher {
     }
 }
 
-export default function Match(params: Params, state: State): Matcher {
-    const nullMatcher = new NullMatcher(params, state);
-    if (state.index >= state.sections.length) {
+export default function Match(params: Params): Matcher {
+    const nullMatcher = new NullMatcher(params);
+    if (params.index >= params.sections.length) {
         return nullMatcher;
     }
 
@@ -22,15 +22,15 @@ export default function Match(params: Params, state: State): Matcher {
     switch (type.type) {
         case 'string':
         case 'tokenTag':
-            return new SimpleMatcher(params, state);
+            return new SimpleMatcher(params);
         case 'union':
-            return new UnionMatcher(params, state, type.childrenIDs);
+            return new UnionMatcher(params, type.childrenIDs);
         case 'group':
-            return new GroupMatcher(params, state, type.childrenIDs);
+            return new GroupMatcher(params, type.childrenIDs);
         case 'repeat':
-            return new RepeatMatcher(params, state, type);
+            return new RepeatMatcher(params, type);
         case 'optional':
-            return new OptionalMatcher(params, state, type.childID);
+            return new OptionalMatcher(params, type.childID);
     }
 
     return nullMatcher;

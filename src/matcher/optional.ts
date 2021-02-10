@@ -5,9 +5,9 @@ export default class OptionalMatcher extends Matcher {
     private matcher: Matcher;
     private returnedEmptyOptional: boolean;
 
-    constructor(params: Params, state: State, childID: number) {
-        super(params, state);
-        this.matcher = Match(this.getParams(childID), state);
+    constructor(params: Params, childID: number) {
+        super(params);
+        this.matcher = Match(this.getParams(childID));
         this.returnedEmptyOptional = false;
     }
 
@@ -18,7 +18,7 @@ export default class OptionalMatcher extends Matcher {
         const check = this.matcher.nextOrNull();
         if (check === null) {
             this.returnedEmptyOptional = true;
-            return this.groupChildren(this.state.sections, 0, 'optional');
+            return this.groupChildren(this.params.sections, 0, 'optional');
         } else {
             return this.groupChildren(check.sections, 1, 'optional');
         }
