@@ -77,20 +77,17 @@ class PartialRepeatMatcher extends Matcher {
 
 export default class RepeatMatcher extends Matcher {
     private matcher: PartialRepeatMatcher;
-    private returnedAny: boolean;
 
     constructor(params: Params, private type: RepeatType) {
         super(params);
         this.matcher = new PartialRepeatMatcher(params, type, false);
-        this.returnedAny = false;
     }
 
     protected nextImpl(): State | null {
         if (!this.matcher.hasNext()) {
-            if (this.returnedAny || this.type.minElementCount > 0) {
+            if (this.returnedAtLeastOne || this.type.minElementCount > 0) {
                 return null;
             }
-            this.returnedAny = true;
             return this.groupChildren(this.params.sections, 0, 'repeat');
         }
         // Guaranteed that matcher.length > 0
@@ -102,7 +99,6 @@ export default class RepeatMatcher extends Matcher {
         if (numElements < this.type.minElementCount) {
             return this.nextImpl();
         }
-        this.returnedAny = true;
         return this.groupChildren(sections, this.matcher.length, 'repeat');
     }
 }

@@ -14,9 +14,11 @@ export type State = {
 
 export abstract class Matcher {
     private buffer: State | null | undefined;
+    protected returnedAtLeastOne: boolean;
 
     constructor(protected params: Params) {
         this.buffer = undefined;
+        this.returnedAtLeastOne = false;
     }
 
     next(): State {
@@ -44,6 +46,9 @@ export abstract class Matcher {
     peekOrNull(): State | null {
         if (this.buffer === undefined) {
             this.buffer = this.nextImpl();
+            if (this.buffer !== null) {
+                this.returnedAtLeastOne = true;
+            }
         }
         return this.buffer;
     }
