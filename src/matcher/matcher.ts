@@ -1,5 +1,6 @@
 import { ComplexType, Section } from '../parser';
 import Schema from '../schema';
+import { Token } from '../tokenizer';
 
 export type Params = {
     schema: Schema;
@@ -12,13 +13,21 @@ export type State = {
     sections: Section[];
 };
 
+export type MatchError = {
+    sections: Section[];
+    token: Token;
+    expectedID: number;
+};
+
 export abstract class Matcher {
     private buffer: State | null | undefined;
     protected returnedAtLeastOne: boolean;
+    protected error: MatchError | null;
 
     constructor(protected params: Params) {
         this.buffer = undefined;
         this.returnedAtLeastOne = false;
+        this.error = null;
     }
 
     next(): State {
@@ -79,10 +88,15 @@ export abstract class Matcher {
     ): State {
         const newSections = sections.slice();
         const children = newSections.splice(this.params.index, length);
+        let nextFirstIDs: number[] = [];
+        if (children.length > 0) {
+            const s = children[0];
+            nextFirstIDs = [s.id, ...s.firstIDs];
+        }
         newSections.splice(this.params.index, 0, {
             type,
             id: this.params.id,
-            firstIDs: this.nextFirstIDs(children),
+            firstIDs: nextFirstIDs,
             children,
             length: children
                 .map((section) => section.length)
@@ -93,12 +107,16 @@ export abstract class Matcher {
         };
     }
 
-    protected nextFirstIDs(sections: Section[]): number[] {
-        if (sections.length === 0) {
-            return [];
-        } else {
-            const s = sections[0];
-            return [s.id, ...s.firstIDs];
+    protected setError(error: MatchError) {
+        if (this.error !== null) {
+            const pNew = error.token.position;
+            const pOld = this.error.token.position;
+            if (
+                pNew.line > pOld.line ||
+                (pNew.line === pOld.line && pNew.column > pOld.column)
+            ) {
+                this.error = error;
+            }
         }
     }
 }
