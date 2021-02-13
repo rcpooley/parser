@@ -29,8 +29,12 @@ export default class SimpleMatcher extends Matcher {
             if (section.type === 'token') {
                 this.setError({
                     sections,
-                    token: section.token,
-                    expectedID: id,
+                    errorStart: index,
+                    errorEnd: index,
+                    exception: {
+                        type: 'wrongToken',
+                        expectedID: id,
+                    },
                 });
                 return null;
             }

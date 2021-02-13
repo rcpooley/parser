@@ -9,8 +9,12 @@ export default function Match(params: Params): Matcher | MatchError {
     if (params.index >= params.sections.length) {
         return {
             sections: params.sections,
-            err,
-            expectedID: params.id,
+            errorStart: params.index,
+            errorEnd: params.index,
+            exception: {
+                type: 'noToken',
+                expectedID: params.id,
+            },
         };
     }
 

@@ -1,6 +1,5 @@
 import Match from '.';
 import { RepeatType } from '../schema';
-import { getFirstToken } from '../util';
 import {
     Matcher,
     MatcherAndSections,
@@ -53,11 +52,6 @@ class PartialRepeatMatcher extends Matcher {
         if (sections === null || sections[this.params.index].length === 0) {
             this.length = 0;
             this.separatorAtEnd = false;
-            this.setError({
-                sections: this.params.sections,
-                token: getFirstToken(this.params.sections, this.params.index),
-                expectedID: this.type.childID,
-            });
             return null;
         }
         if (this.remainingMatcher === null) {
@@ -102,17 +96,26 @@ export default class RepeatMatcher extends Matcher {
     constructor(params: Params, private type: RepeatType) {
         super(params);
         this.matcher = new PartialRepeatMatcher(params, type, false);
-        if (!this.matcher.hasNext()) {
-            this.setError(this.matcher.getError());
-        }
     }
 
     protected nextImpl(): State | null {
         if (!this.matcher.hasNext()) {
-            if (this.returnedAtLeastOne || this.type.minElementCount > 0) {
+            if (this.returnedAtLeastOne) {
                 return null;
             }
-            return this.groupChildren(this.params.sections, 0, 'repeat');
+            const ret = this.groupChildren(this.params.sections, 0, 'repeat');
+            if (this.type.minElementCount > 0) {
+                this.setError({
+                    sections: ret.sections,
+                    errorStart: this.params.index,
+                    errorEnd: this.params.index,
+                    exception: {
+                        type: 'repeatMinimumElements',
+                    },
+                });
+                return null;
+            }
+            return ret;
         }
         // Guaranteed that matcher.length > 0
         const sections = this.matcher.next().sections;
@@ -120,19 +123,20 @@ export default class RepeatMatcher extends Matcher {
         if (this.type.separator !== null) {
             numElements = Math.floor((numElements + 1) / 2);
         }
+
+        const ret = this.groupChildren(sections, this.matcher.length, 'repeat');
+
         if (numElements < this.type.minElementCount) {
             this.setError({
-                sections,
-                token: getFirstToken(sections, this.params.index),
-                expectedID: this.type.childID,
-                comment: `Expected at least ${
-                    this.type.minElementCount
-                } element${
-                    this.type.minElementCount === 1 ? '' : 's'
-                } but only got ${numElements}`,
+                sections: ret.sections,
+                errorStart: this.params.index,
+                errorEnd: this.params.index,
+                exception: {
+                    type: 'repeatMinimumElements',
+                },
             });
             return this.nextImpl();
         }
-        return this.groupChildren(sections, this.matcher.length, 'repeat');
+        return ret;
     }
 }

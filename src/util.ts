@@ -1,21 +1,11 @@
-import { Section } from './parser';
-import { Token } from './tokenizer';
+import { MatchError } from './matcher/matcher';
 
 export function escapeRegExp(str: string) {
     return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
 }
 
-export function getFirstToken(
-    sections: Section[],
-    index: number = 0
-): Token | null {
-    for (let i = index; i < sections.length; i++) {
-        const s = sections[i];
-        if (s.type === 'token') {
-            return s.token;
-        }
-        const token = getFirstToken(s.children);
-        if (token !== null) return token;
-    }
-    return null;
+export function getErrorRange(error: MatchError): [number, number] {
+    const start = error.sections[error.errorStart];
+    const end = error.sections[error.errorEnd];
+    return [start.tokenIndex, end.tokenIndex + end.length];
 }

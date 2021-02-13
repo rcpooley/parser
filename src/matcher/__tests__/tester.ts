@@ -2,7 +2,14 @@ import Match from '..';
 import { convertTokensToSections, Section } from '../../parser';
 import Schema from '../../schema';
 import Tokenizer from '../../tokenizer';
-import { Matcher, MatchError } from '../matcher';
+import { Matcher, MatchException } from '../matcher';
+
+type TestMatchError = {
+    sections: Array<Section | string>;
+    errorStart: number;
+    errorEnd: number;
+    exception: MatchException;
+};
 
 export default class Tester {
     private tokenizer: Tokenizer;
@@ -32,7 +39,7 @@ export default class Tester {
         expect(matcher.hasNext()).toBeFalsy();
     }
 
-    expectError(text: string, expectedError: MatchError) {
+    expectError(text: string, expectedError: TestMatchError) {
         const tokens = this.tokenizer.setText(text);
         const sections = convertTokensToSections(this.schema, tokens);
         const matcher = Match({
@@ -48,18 +55,21 @@ export default class Tester {
         );
         expect(matcher.errorStart).toEqual(expectedError.errorStart);
         expect(matcher.errorEnd).toEqual(expectedError.errorEnd);
-        expect(matcher.expectedID).toEqual(expectedError.expectedID);
+        expect(matcher.exception).toEqual(expectedError.exception);
     }
 
     private clean(sections: Section[]): any {
+        let curTokenIndex = 0;
         return sections.map((section) => {
             const o: any = {
                 type: section.type,
                 id: section.id,
                 firstIDs: section.firstIDs,
                 children: this.clean(section.children),
+                tokenIndex: curTokenIndex,
                 length: section.length,
             };
+            curTokenIndex += section.length;
             if (section.type === 'token') {
                 o.token = section.token.value;
             }
@@ -82,6 +92,7 @@ export default class Tester {
             id,
             firstIDs: this.getFirstIDs(sections),
             children: sections,
+            tokenIndex: -1,
             length: this.getLength(sections),
         };
     }
@@ -101,6 +112,7 @@ export default class Tester {
                         position,
                         tag: null,
                     },
+                    tokenIndex: -1,
                     length: 1,
                     id,
                     firstIDs: [],
