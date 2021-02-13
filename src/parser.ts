@@ -1,4 +1,5 @@
 import Match from './matcher';
+import { Matcher, MatchError } from './matcher/matcher';
 import Schema from './schema';
 import { Token, TokenDelta } from './tokenizer';
 
@@ -6,6 +7,7 @@ type BaseSection = {
     id: number;
     firstIDs: number[];
     children: Section[];
+    tokenIndex: number;
     length: number;
 };
 
@@ -31,12 +33,13 @@ export function convertTokensToSections(
     schema: Schema,
     tokens: Token[]
 ): TokenSection[] {
-    return tokens.map((token) => {
+    return tokens.map((token, tokenIndex) => {
         const o = (id: number) => {
             const sec: TokenSection = {
                 type: 'token',
                 id,
                 token,
+                tokenIndex,
                 length: 1,
                 firstIDs: [],
                 children: [],
@@ -61,21 +64,21 @@ export function convertTokensToSections(
 export default class Parser {
     constructor(private schema: Schema, private baseType: number) {}
 
-    setTokens(tokens: Token[]): Section | null {
+    setTokens(tokens: Token[]): Section | MatchError {
         const matcher = Match({
             schema: this.schema,
             id: this.baseType,
             sections: convertTokensToSections(this.schema, tokens),
             index: 0,
         });
-        const state = matcher.nextOrNull();
-        if (state === null) {
-            return null;
+        if (matcher instanceof Matcher) {
+            const state = matcher.next();
+            if (state.sections.length === 0) {
+                throw new Error('not possible');
+            }
+            return state.sections[0];
         }
-        if (state.sections.length === 0) {
-            throw new Error('not possible');
-        }
-        return state.sections[0];
+        return matcher;
     }
 
     onChange(delta: TokenDelta): Section | null {

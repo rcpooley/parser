@@ -1,12 +1,12 @@
 import Match from '.';
 import { Section } from '../parser';
-import { Matcher, Params, State } from './matcher';
+import { Matcher, MatchError, Params, State } from './matcher';
 
 /**
  * Returned state is not wrapped in group
  */
 export class PartialGroupMatcher extends Matcher {
-    private firstChildMatcher: Matcher;
+    private firstChildMatcher: Matcher | MatchError;
     private firstSections: Section[] | null;
     private remainingChildrenIDs: number[];
     private remainingMatcher: Matcher | null;
@@ -14,6 +14,9 @@ export class PartialGroupMatcher extends Matcher {
     constructor(params: Params, childrenIDs: number[]) {
         super(params);
         this.firstChildMatcher = Match(this.getParams(childrenIDs[0]));
+        if (!(this.firstChildMatcher instanceof Matcher)) {
+            this.setError(this.firstChildMatcher);
+        }
         this.firstSections = null;
         this.remainingChildrenIDs = childrenIDs.slice(1);
         this.remainingMatcher = null;
@@ -52,13 +55,20 @@ export class PartialGroupMatcher extends Matcher {
                 this.getParams(-1, sections, this.params.index + 1),
                 this.remainingChildrenIDs
             );
+            if (!this.remainingMatcher.hasNext()) {
+                this.setError(this.remainingMatcher.getError());
+            }
         }
         return this.remainingMatcher;
     }
 
     private nextFirstSections(): Section[] | null {
         this.remainingMatcher = null;
-        return this.firstChildMatcher.nextOrNull()?.sections || null;
+        if (this.firstChildMatcher instanceof Matcher) {
+            return this.firstChildMatcher.nextOrNull()?.sections || null;
+        } else {
+            return null;
+        }
     }
 }
 
@@ -68,6 +78,9 @@ export default class GroupMatcher extends Matcher {
     constructor(params: Params, private childrenIDs: number[]) {
         super(params);
         this.matcher = new PartialGroupMatcher(params, childrenIDs);
+        if (!this.matcher.hasNext()) {
+            this.setError(this.matcher.getError());
+        }
     }
 
     protected nextImpl(): State | null {

@@ -2,6 +2,7 @@ import Match from '..';
 import { convertTokensToSections, Section } from '../../parser';
 import Schema from '../../schema';
 import Tokenizer from '../../tokenizer';
+import { Matcher, MatchError } from '../matcher';
 
 export default class Tester {
     private tokenizer: Tokenizer;
@@ -19,6 +20,8 @@ export default class Tester {
             sections,
             index: 0,
         });
+        expect(matcher).toBeInstanceOf(Matcher);
+        if (!(matcher instanceof Matcher)) throw new Error('not possible');
         matches.forEach((expectedSections) => {
             expect(matcher.hasNext()).toBeTruthy();
             const state = matcher.next();
@@ -27,6 +30,25 @@ export default class Tester {
             );
         });
         expect(matcher.hasNext()).toBeFalsy();
+    }
+
+    expectError(text: string, expectedError: MatchError) {
+        const tokens = this.tokenizer.setText(text);
+        const sections = convertTokensToSections(this.schema, tokens);
+        const matcher = Match({
+            schema: this.schema,
+            id: this.id,
+            sections,
+            index: 0,
+        });
+        expect(matcher).not.toBeInstanceOf(Matcher);
+        if (matcher instanceof Matcher) throw new Error('not possible');
+        expect(this.clean(matcher.sections)).toEqual(
+            this.clean(this.convertSections(expectedError.sections))
+        );
+        expect(matcher.errorStart).toEqual(expectedError.errorStart);
+        expect(matcher.errorEnd).toEqual(expectedError.errorEnd);
+        expect(matcher.expectedID).toEqual(expectedError.expectedID);
     }
 
     private clean(sections: Section[]): any {

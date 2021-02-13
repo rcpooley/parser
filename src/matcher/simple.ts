@@ -27,11 +27,11 @@ export default class SimpleMatcher extends Matcher {
 
             // Break down
             if (section.type === 'token') {
-                this.error = {
+                this.setError({
                     sections,
                     token: section.token,
                     expectedID: id,
-                };
+                });
                 return null;
             }
             sections.splice(index, 1, ...section.children);

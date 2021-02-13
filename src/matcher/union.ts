@@ -29,11 +29,12 @@ export default class UnionMatcher extends Matcher {
                 const matcher = Match(
                     this.getParams(childrenIDs[this.childIndex++])
                 );
-                if (!matcher.hasNext()) {
-                    return this.nextMatcher();
+                if (matcher instanceof Matcher) {
+                    this.matchers.push(matcher);
+                    return matcher;
                 }
-                this.matchers.push(matcher);
-                return matcher;
+                this.setError(matcher);
+                return this.nextMatcher();
             } else {
                 this.childIndex = 0;
                 this.loadedAllMatchers = true;

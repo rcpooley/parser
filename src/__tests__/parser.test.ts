@@ -13,11 +13,11 @@ class Tester {
     }
 
     expect(text: string, expected: any) {
-        expect(
-            this.cleanSection(
-                this.parser.setTokens(this.tokenizer.setText(text))
-            )
-        ).toEqual(expected);
+        const result = this.parser.setTokens(this.tokenizer.setText(text));
+        if (!('id' in result)) {
+            throw new Error('Parser errored');
+        }
+        expect(this.cleanSection(result)).toEqual(expected);
     }
 
     cleanSection(section: Section | null): any {
@@ -140,7 +140,9 @@ describe('Parser', () => {
         const section = parser.setTokens(
             langSchema.tokenizer.setText(`Union<string, Dict<hi, bye>>`)
         );
-        expect(section).not.toBeNull();
+        if (!('id' in section)) {
+            throw new Error('Parser errored');
+        }
         if (section === null) throw new Error();
         const type = langSchema.parse(section);
         expect(type).toEqual({

@@ -1,8 +1,8 @@
 import Match from '.';
-import { Matcher, Params, State } from './matcher';
+import { Matcher, MatchError, Params, State } from './matcher';
 
 export default class OptionalMatcher extends Matcher {
-    private matcher: Matcher;
+    private matcher: Matcher | MatchError;
     private returnedEmptyOptional: boolean;
 
     constructor(params: Params, childID: number) {
@@ -15,12 +15,13 @@ export default class OptionalMatcher extends Matcher {
         if (this.returnedEmptyOptional) {
             return null;
         }
-        const check = this.matcher.nextOrNull();
-        if (check === null) {
-            this.returnedEmptyOptional = true;
-            return this.groupChildren(this.params.sections, 0, 'optional');
-        } else {
-            return this.groupChildren(check.sections, 1, 'optional');
+        if (this.matcher instanceof Matcher) {
+            const check = this.matcher.nextOrNull();
+            if (check !== null) {
+                return this.groupChildren(check.sections, 1, 'optional');
+            }
         }
+        this.returnedEmptyOptional = true;
+        return this.groupChildren(this.params.sections, 0, 'optional');
     }
 }

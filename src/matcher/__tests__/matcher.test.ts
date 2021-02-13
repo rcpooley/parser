@@ -189,6 +189,8 @@ describe('Matcher', () => {
 
     test('repeat min 2 element', () => {
         const schema = new Schema();
+        const a = schema.string('a');
+        schema.string('x');
         const root = schema.repeat('a', {
             minElementCount: 2,
         });
@@ -197,8 +199,8 @@ describe('Matcher', () => {
 
         t.expect('a a a', [_r('a', 'a', 'a')]);
         t.expect('a a', [_r('a', 'a')]);
-        t.expect('a');
-        t.expect('x');
+        t.expectError('a', ['a'], 0, a);
+        t.expectError('x', ['x'], 0, a);
     });
 
     test('optional repeat min 0 elements in group', () => {
@@ -249,6 +251,7 @@ describe('Matcher', () => {
 
     test('repeat of repeats outer min count 1', () => {
         const schema = new Schema();
+        const a = schema.string('a');
         schema.string('x');
         const rep = schema.repeat('a');
         const root = schema.repeat(rep, { minElementCount: 1 });
@@ -258,7 +261,7 @@ describe('Matcher', () => {
 
         t.expect('a a', [_r(_rep('a', 'a'))]);
         t.expect('a', [_r(_rep('a'))]);
-        t.expect('x');
+        t.expectError('x', ['x'], 0, rep);
     });
 
     test('repeat of repeats with outer separator', () => {

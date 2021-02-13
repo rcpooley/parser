@@ -1,6 +1,5 @@
 import { ComplexType, Section } from '../parser';
 import Schema from '../schema';
-import { Token } from '../tokenizer';
 
 export type Params = {
     schema: Schema;
@@ -15,14 +14,16 @@ export type State = {
 
 export type MatchError = {
     sections: Section[];
-    token: Token;
-    expectedID: number;
+    errorStart: number;
+    errorEnd: number;
+    expectedID?: number;
+    comment?: string;
 };
 
 export abstract class Matcher {
     private buffer: State | null | undefined;
     protected returnedAtLeastOne: boolean;
-    protected error: MatchError | null;
+    private error: MatchError | null;
 
     constructor(protected params: Params) {
         this.buffer = undefined;
@@ -64,6 +65,13 @@ export abstract class Matcher {
 
     hasNext(): boolean {
         return this.peekOrNull() !== null;
+    }
+
+    getError(): MatchError {
+        if (this.error === null) {
+            throw new Error('Called getError() but no error is available');
+        }
+        return this.error;
     }
 
     protected abstract nextImpl(): State | null;
@@ -108,16 +116,17 @@ export abstract class Matcher {
     }
 
     protected setError(error: MatchError) {
-        if (this.error !== null) {
+        if (this.error !== null && error.token !== null) {
+            if (this.error.token === null) return;
             const pNew = error.token.position;
             const pOld = this.error.token.position;
             if (
-                pNew.line > pOld.line ||
-                (pNew.line === pOld.line && pNew.column > pOld.column)
-            ) {
-                this.error = error;
-            }
+                pNew.line < pOld.line ||
+                (pNew.line === pOld.line && pNew.column <= pOld.column)
+            )
+                return;
         }
+        this.error = error;
     }
 }
 
